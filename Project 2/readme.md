@@ -1,5 +1,9 @@
 This is project number 2 for EECS 738. All files are written in Python 3.7
 
+IMPORTANT NOTE: Please run File 1 first (compute_trans_generate.py), so as to generate the binary files
+for the initial probability vector and the transition probability matrix. These files are large (> 60 MB),
+and cannot be uploaded on GITHUB.
+
 File 1: compute_trans_generate.py - This code finds the initial probabilities for the starting word of each sentence in the play,
 and also finds the transition probability matrix, the elements of which are probabilities for each word transitions.
 
@@ -19,7 +23,8 @@ In other words, it generates a probability transition matrix.
 
 3. Then it generates text given the number of sentences and words to be generated per sentence.
 
-4. Finally it saves the initial probability vector, probability transition matrix and the vocabulary list as python binary files.
+4. Finally it saves the initial probability vector, probability transition matrix and the vocabulary list as python binary files
+in the current working directory.
 
 This code's transition probability matrix and probability init vector are used as inputs for forward-backward algorithm,
 generating text using Viterbi algorithm and also predicting text using Viterbi algorithm.
