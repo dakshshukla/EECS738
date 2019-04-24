@@ -1,149 +1,107 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Apr 15 09:39:11 2019
+Created on Mon Apr 15 10:56:20 2019
 
 @author: daksh
 """
 
-from scipy.io import loadmat
-import numpy as np
-import scipy.optimize as opt
-import pandas as pd
-import matplotlib.pyplot as plt
-# reading the data
-data = loadmat('ex4data1.mat')
-X = data['X']
-y = data['y']
-# visualizing the data
-_, axarr = plt.subplots(10,10,figsize=(10,10))
-for i in range(10):
-    for j in range(10):
-       axarr[i,j].imshow(X[np.random.randint(X.shape[0])].reshape((20,20), order = 'F'))          
-       axarr[i,j].axis('off')
+# Command for runnning via IPython console in Spyder:
+# runfile('mnist_1.py', args = '500')
+# arguments = number of epochs to train for
 
-weights = loadmat('ex4weights.mat')
-theta1 = weights['Theta1']    #Theta1 has size 25 x 401
-theta2 = weights['Theta2']    #Theta2 has size 10 x 26
-nn_params = np.hstack((theta1.ravel(order='F'), theta2.ravel(order='F')))    #unroll parameters
-# neural network hyperparameters
-input_layer_size = 400
-hidden_layer_size = 25
-num_labels = 10
-lmbda = 1
+import numpy as np
+import matplotlib.pyplot as plt
+import sys
+
+""" For testing only start"""
+#num_epochs = 500
+""" For testing only end"""
+
+# Input arguments:
+num_epochs = int(sys.argv[1])
+
+X = np.load('images_flat.npy')
+y = np.load('labels.npy')
+X = X / 255
+
+y_new = np.zeros(y.shape)
+y_new[np.where(y == 0.0)[0]] = 1
+y = y_new
+
+m = 60000
+m_test = X.shape[0] - m
+X_train = X[:m].T
+X_test = X[m:].T
+y_train = y[:m].reshape(1,m)
+y_test = y[m:].reshape(1,m_test)
+
+np.random.seed(138)
+shuffle_index = np.random.permutation(m)
+X_train, y_train = X_train[:,shuffle_index], y_train[:,shuffle_index]
 
 def sigmoid(z):
-    return 1/(1+np.exp(-z))
+    s = 1 / (1 + np.exp(-z))
+    return s
 
-def nnCostFunc(nn_params, input_layer_size, hidden_layer_size, num_labels, X, y, lmbda):
-    theta1 = np.reshape(nn_params[:hidden_layer_size*(input_layer_size+1)], (hidden_layer_size, input_layer_size+1), 'F')
-    theta2 = np.reshape(nn_params[hidden_layer_size*(input_layer_size+1):], (num_labels, hidden_layer_size+1), 'F')
+def compute_loss(Y, Y_hat):
+    m = Y.shape[1]
+    L = -(1./m) * ( np.sum( np.multiply(np.log(Y_hat),Y) ) + np.sum( np.multiply(np.log(1-Y_hat),(1-Y)) ) )
 
-    m = len(y)
-    ones = np.ones((m,1))
-    a1 = np.hstack((ones, X))
-    a2 = sigmoid(a1 @ theta1.T)
-    a2 = np.hstack((ones, a2))
-    h = sigmoid(a2 @ theta2.T)
+    return L
+
+learning_rate = 1
+
+X = X_train
+Y = y_train
+
+n_x = X.shape[0]
+m = X.shape[1]
+
+W = np.random.randn(n_x, 1) * 0.01
+b = np.zeros((1, 1))
+
+print('Start Training')
+
+for i in range(num_epochs):
     
-    y_d = pd.get_dummies(y.flatten())
-    
-    temp1 = np.multiply(y_d, np.log(h))
-    temp2 = np.multiply(1-y_d, np.log(1-h))
-    temp3 = np.sum(temp1 + temp2)
-    
-    sum1 = np.sum(np.sum(np.power(theta1[:,1:],2), axis = 1))
-    sum2 = np.sum(np.sum(np.power(theta2[:,1:],2), axis = 1))
-    
-    return np.sum(temp3 / (-m)) + (sum1 + sum2) * lmbda / (2*m)
+    Z = np.matmul(W.T, X) + b
+    A = sigmoid(Z)
 
-nnCostFunc(nn_params, input_layer_size, hidden_layer_size, num_labels, X, y, lmbda)
+    cost = compute_loss(Y, A)
 
-def sigmoidGrad(z):
-    return np.multiply(sigmoid(z), 1-sigmoid(z))
+    dW = (1/m) * np.matmul(X, (A-Y).T)
+    db = (1/m) * np.sum(A-Y, axis=1, keepdims=True)
 
-def randInitializeWeights(L_in, L_out):
-    epsilon = 0.12
-    return np.random.rand(L_out, L_in+1) * 2 * epsilon - epsilon
+    W = W - learning_rate * dW
+    b = b - learning_rate * db
 
-initial_theta1 = randInitializeWeights(input_layer_size, hidden_layer_size)
-initial_theta2 = randInitializeWeights(hidden_layer_size, num_labels)
+    if (i % 100 == 0):
+        print("Epoch", i, "cost: ", cost)
 
-# unrolling parameters into a single column vector
-nn_initial_params = np.hstack((initial_theta1.ravel(order='F'), initial_theta2.ravel(order='F')))
+print("Final cost:", cost)
 
-def nnGrad(nn_params, input_layer_size, hidden_layer_size, num_labels, X, y, lmbda):
-    
-    initial_theta1 = np.reshape(nn_params[:hidden_layer_size*(input_layer_size+1)], (hidden_layer_size, input_layer_size+1), 'F')
-    initial_theta2 = np.reshape(nn_params[hidden_layer_size*(input_layer_size+1):], (num_labels, hidden_layer_size+1), 'F')
-    y_d = pd.get_dummies(y.flatten())
-    delta1 = np.zeros(initial_theta1.shape)
-    delta2 = np.zeros(initial_theta2.shape)
-    m = len(y)
-    
-    for i in range(X.shape[0]):
-        ones = np.ones(1)
-        a1 = np.hstack((ones, X[i]))
-        z2 = a1 @ initial_theta1.T
-        a2 = np.hstack((ones, sigmoid(z2)))
-        z3 = a2 @ initial_theta2.T
-        a3 = sigmoid(z3)
+Z = np.matmul(W.T, X_test) + b
+A = sigmoid(Z)
 
-        d3 = a3 - y_d.iloc[i,:][np.newaxis,:]
-        z2 = np.hstack((ones, z2))
-        d2 = np.multiply(initial_theta2.T @ d3.T, sigmoidGrad(z2).T[:,np.newaxis])
-        delta1 = delta1 + d2[1:,:] @ a1[np.newaxis,:]
-        delta2 = delta2 + d3.T @ a2[np.newaxis,:]
-        
-    delta1 /= m
-    delta2 /= m
-    #print(delta1.shape, delta2.shape)
-    delta1[:,1:] = delta1[:,1:] + initial_theta1[:,1:] * lmbda / m
-    delta2[:,1:] = delta2[:,1:] + initial_theta2[:,1:] * lmbda / m
-        
-    return np.hstack((delta1.ravel(order='F'), delta2.ravel(order='F')))
+#i = 3
+#plt.imshow(X_train[:,i].reshape(28,28), cmap = matplotlib.cm.binary)
+#plt.axis("off")
+#plt.show()
 
-nn_backprop_Params = nnGrad(nn_initial_params, input_layer_size, hidden_layer_size, num_labels, X, y, lmbda)
+idx_0 = np.where(y_test == 1)
 
-def checkGradient(nn_initial_params,nn_backprop_Params,input_layer_size, hidden_layer_size, num_labels,myX,myy,mylambda=0.):
-    myeps = 0.0001
-    flattened = nn_initial_params
-    flattenedDs = nn_backprop_Params
-    n_elems = len(flattened) 
-    #Pick ten random elements, compute numerical gradient, compare to respective D's
-    for i in range(10):
-        x = int(np.random.rand()*n_elems)
-        epsvec = np.zeros((n_elems,1))
-        epsvec[x] = myeps
+Accuracy = np.sum(1 - (y_test[idx_0] - A[idx_0]))/A[idx_0].shape[0]
+s = 'Accuracy = ' + np.str(np.around(Accuracy, decimals = 4)*100) + '%'
 
-        cost_high = nnCostFunc(flattened + epsvec.flatten(),input_layer_size, hidden_layer_size, num_labels,myX,myy,mylambda)
-        cost_low  = nnCostFunc(flattened - epsvec.flatten(),input_layer_size, hidden_layer_size, num_labels,myX,myy,mylambda)
-        mygrad = (cost_high - cost_low) / float(2*myeps)
-        print("Element: {0}. Numerical Gradient = {1:.9f}. BackProp Gradient = {2:.9f}.".format(x,mygrad,flattenedDs[x]))
-
-checkGradient(nn_initial_params,nn_backprop_Params,input_layer_size, hidden_layer_size, num_labels,X,y,lmbda)
-
-theta_opt = opt.fmin_cg(maxiter = 50, f = nnCostFunc, x0 = nn_initial_params, fprime = nnGrad, \
-                        args = (input_layer_size, hidden_layer_size, num_labels, X, y.flatten(), lmbda))
-
-theta1_opt = np.reshape(theta_opt[:hidden_layer_size*(input_layer_size+1)], (hidden_layer_size, input_layer_size+1), 'F')
-theta2_opt = np.reshape(theta_opt[hidden_layer_size*(input_layer_size+1):], (num_labels, hidden_layer_size+1), 'F')
-
-def predict(theta1, theta2, X, y):
-    m = len(y)
-    ones = np.ones((m,1))
-    a1 = np.hstack((ones, X))
-    a2 = sigmoid(a1 @ theta1.T)
-    a2 = np.hstack((ones, a2))
-    h = sigmoid(a2 @ theta2.T)
-    return np.argmax(h, axis = 1) + 1
-
-pred = predict(theta1_opt, theta2_opt, X, y)
-np.mean(pred == y.flatten()) * 100
-
-
-
-
-
-
+plt.plot(np.arange(A[idx_0].shape[0]), A[idx_0], 'b.')
+plt.plot(np.arange(A[idx_0].shape[0]), y_test[idx_0], 'r.')
+plt.xlabel('Data Points')
+plt.ylabel('Class 0 or 1')
+plt.rcParams.update({'font.size': 12})
+plt.legend(['Predicted Class', 'True Class'])
+plt.title('ANN Predicted vs True Class for number \'0\'')
+plt.ylim([0, 1.5])
+plt.text(10, 1.25, s, fontsize=12)
+plt.show()
 
 
