@@ -1,3 +1,17 @@
+airfoil_predict.py: Run as python airfoil_predict.py
+
+Data: Airfoil Self-Noise Data Set 
+Code for predicting Scaled sound pressure level, in decibels. Data taken from https://archive.ics.uci.edu/ml/datasets/airfoil+self-noise
+Data has 5 input features and 1 output.
+
+- Loads airfoil data and its labels (the data is saved as dat file)
+- Divides data into training ans testing samples
+- Asks the user if a new training needs to be done or if pretrained parameters can be used
+- Asks the user for number of epochs for training (use around 1000 epochs for good accuracy)
+- Evaluates the trained model or with loaded parameters
+- Prints the cost while training and prints the final mean sqaured error on test data
+________________________________________________________________________________________________________________________________________
+
 mnist.py file: Run as python mnist.py
 
 Code for single hidden layer ANN training with momenum, trains very fast

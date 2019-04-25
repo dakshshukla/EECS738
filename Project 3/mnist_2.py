@@ -107,7 +107,6 @@ def train_save(nn_params, num_epochs, alpha, X, Y):
     with open('nn_params.pkl', 'wb') as f:
         pickle.dump(nn_params, f)
     f.close()
-    np.save('nn_params.npy', nn_params)
     
     return nn_params
 
